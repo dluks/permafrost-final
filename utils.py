@@ -28,6 +28,7 @@ def patch_train_label(
     merge_channel=False,
     add_ndvi=False,
     squash=True,
+    img_size_override=None,
 ):
     """
     Patchifies images and labels into square patches
@@ -52,9 +53,10 @@ def patch_train_label(
 
     assert len(rgb_fns) > 0, "Raster list is empty."
     samp_rast = tiff.imread(rgb_fns[0])
-    img_base_size = samp_rast.shape[0]
+    img_base_size = img_size_override if img_size_override else samp_rast.shape[0]
     n = len(rgb_fns)
     m = (img_base_size // img_size) ** 2
+    bad_ims = []
 
     if not channels:
         channels = samp_rast.shape[-1]
@@ -96,20 +98,37 @@ def patch_train_label(
             # Squash all class labels into single class
             labels[labels > 0] = 1
 
-        # Only read in the specified number of channels from input raster
-        patches_train = patchify(
-            r,
-            (img_size, img_size, channels),
-            step=img_size,
-        )
-        patches_label = patchify(labels, (img_size, img_size), step=img_size)
-        data_train[k * m : (k + 1) * m, :, :, :] = patches_train.reshape(
-            -1, img_size, img_size, channels
-        )
-        data_label[k * m : (k + 1) * m, :, :] = patches_label.reshape(
-            -1, img_size, img_size
-        )
-    
+        if (
+            img_size_override
+            and (r.shape[0] == img_size_override and r.shape[1] == img_size_override)
+        ) or not img_size_override:
+            # Only read in the specified number of channels from input raster
+            patches_train = patchify(
+                r,
+                (img_size, img_size, channels),
+                step=img_size,
+            )
+            patches_label = patchify(labels, (img_size, img_size), step=img_size)
+            # print(patches_label.shape)
+            data_train[k * m : (k + 1) * m, :, :, :] = patches_train.reshape(
+                -1, img_size, img_size, channels
+            )
+            data_label[k * m : (k + 1) * m, :, :] = patches_label.reshape(
+                -1, img_size, img_size
+            )
+        else:
+            bad_ims.append(rgb_fns[k])
+
+    if img_size_override and len(bad_ims) > 0:
+        print("bad ims length:", len(bad_ims))
+        print("m:", m)
+        print("Cull rows:", -len(bad_ims) * m)
+        print("Shape before:", data_train.shape)
+        bad_im_idx = np.arange(-len(bad_ims) * m, 0, 1)
+        data_train = np.delete(data_train, bad_im_idx, axis=0)
+        data_label = np.delete(data_label, bad_im_idx, axis=0)
+        print("Shape after:", data_train.shape)
+
     data_label = np.expand_dims(data_label, axis=-1)
     data_train = data_train.astype("float") / 255
 
@@ -121,7 +140,13 @@ def patch_train_label(
 
 
 def prep_data(
-    data_dir, seed=157, include_nir=True, add_ndvi=True, squash=True, patch_size=256
+    data_dir,
+    seed=157,
+    include_nir=True,
+    add_ndvi=True,
+    squash=True,
+    patch_size=512,
+    img_size_override=None,
 ):
     # DATASET
     rgb_fns = []
@@ -139,7 +164,7 @@ def prep_data(
         if include_nir:
             nir_fns.append(nir)
         label_fns.append(labels)
-    
+
     assert len(rgb_fns) == len(label_fns), "RGB and Labels file counts do not match."
     # print("RGB size:", len(rgb_fns))
     # if include_nir:
@@ -155,6 +180,7 @@ def prep_data(
             merge_channel=nir_fns,
             add_ndvi=True,
             squash=squash,
+            img_size_override=img_size_override,
         )
     elif include_nir:
         data_train, data_label = patch_train_label(
@@ -164,10 +190,16 @@ def prep_data(
             channels=4,
             merge_channel=nir_fns,
             squash=squash,
+            img_size_override=img_size_override,
         )
     else:
         data_train, data_label = patch_train_label(
-            rgb_fns, label_fns, patch_size, channels=3, squash=squash
+            rgb_fns,
+            label_fns,
+            patch_size,
+            channels=3,
+            squash=squash,
+            img_size_override=img_size_override,
         )
 
     X_train, X_test, y_train, y_test = train_test_split(

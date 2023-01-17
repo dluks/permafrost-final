@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-import os
 import datetime
+import os
 
 import numpy as np
-from sklearn.model_selection import KFold
 import tensorflow as tf
-from tensorflow import keras
 from keras import backend as K
+from sklearn.model_selection import KFold
+from tensorflow import keras
 from tensorflow.keras.layers import (
     Activation,
     BatchNormalization,
@@ -20,17 +20,18 @@ from tensorflow.keras.metrics import BinaryIoU, MeanIoU
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 from tqdm import tqdm
+
 from utils import prep_data
 
 # Config
 BASE_LOGS_DIR = "logs"
-DATA_DIR = "../../data/"
-SET_NAMES = ["simp_imp"]
+DATA_DIR = "data"
+SET_NAMES = ["single-class"]
 MASK_VALUE = -1
 
 # Hyperparams
-N_FOLDS = 10
-EPOCHS = 50
+N_FOLDS = 1
+EPOCHS = 15
 ETA = 1e-2
 BATCH_SIZE = 16
 
@@ -170,13 +171,67 @@ def train_unet(
     )
     return model, history
 
+def concat_train_test(X_train, y_train, X_test, y_test, X_train_add, y_train_add, X_test_add, y_test_add):
+    X_train = np.concatenate((X_train, X_train_add), axis=0)
+    y_train = np.concatenate((y_train, y_train_add), axis=0)
+    X_test = np.concatenate((X_test, X_test_add), axis=0)
+    y_test = np.concatenate((y_test, y_test_add), axis=0)
+    return X_train, y_train, X_test, y_test
 
-def train_set(set_name, ws_rgb, ws_label):
-    X_train, y_train, X_test, y_test = prep_data(DATA_DIR, "hand", ws_rgb, ws_label)
+def load_datasets(include_nir=False, add_ndvi=False, squash=True):
+    # Load Kivalina
+    X_train, y_train, X_test, y_test = prep_data(
+        "data/WA_Kivalina_01_20219703/20cm/Ortho",
+        include_nir=include_nir,
+        add_ndvi=add_ndvi,
+        squash=squash,
+        img_size_override=2500,
+    )
+
+    # Load Kotzebue
+    X_train_add, y_train_add, X_test_add, y_test_add = prep_data(
+        "data/WA_Kotzebue_01_20210625/20cm/Ortho",
+        include_nir=include_nir,
+        add_ndvi=add_ndvi,
+        squash=squash,
+        img_size_override=2500,
+    )
+
+    # Concatenate Kivalina and Kotzebue
+    X_train, y_train, X_test, y_test = concat_train_test(
+        X_train, y_train, X_test, y_test, X_train_add, y_train_add, X_test_add, y_test_add
+    )
+
+    # Load Shishmaref
+    X_train_add, y_train_add, X_test_add, y_test_add = prep_data(
+        "data/WA_Shishmaref_01_20210628/20cm/Ortho",
+        include_nir=include_nir,
+        add_ndvi=add_ndvi,
+        squash=squash,
+        img_size_override=2500,
+    )
+
+    # Concatenate Shishmaref to train test sets
+    X_train, y_train, X_test, y_test = concat_train_test(
+        X_train, y_train, X_test, y_test, X_train_add, y_train_add, X_test_add, y_test_add
+    )
+
+    print("\nFinal concatenated sizes:\n")
+    print("-------------------------\n")
+    print("X_train:", X_train.shape)
+    print("y_train:", y_train.shape)
+    print("X_test:", X_test.shape)
+    print("y_test:", y_test.shape)
+    
+    return X_train, y_train, X_test, y_test
+
+def train_set(include_nir=False, add_ndvi=False, squash=True):
+    
+    X_train, y_train, X_test, y_test = load_datasets(include_nir=False, add_ndvi=False, squash=True)
 
     # MODEL
     # Data structure
-    stats = ["loss", "val_loss", "iou", "val_iou", "mean_biou", "tree_biou", "bg_biou"]
+    stats = ["loss", "val_loss", "iou", "val_iou", "mean_biou", "human_biou", "bg_biou"]
 
     data = np.zeros((N_FOLDS, len(stats)), dtype=object)
 
@@ -228,10 +283,10 @@ def train_set(set_name, ws_rgb, ws_label):
         biou.update_state(y_pred=y_pred, y_true=y_test)
         pred_biou = biou.result().numpy()
 
-        # only for trees
-        tree_biou = BinaryIoU(target_class_ids=[1], threshold=0.5)
-        tree_biou.update_state(y_pred=y_pred, y_true=y_test)
-        pred_tree_biou = tree_biou.result().numpy()
+        # only for human-built
+        human_biou = BinaryIoU(target_class_ids=[1], threshold=0.5)
+        human_biou.update_state(y_pred=y_pred, y_true=y_test)
+        pred_human_biou = human_biou.result().numpy()
 
         # only for non-tree pixel (background)
         bg_biou = BinaryIoU(target_class_ids=[0], threshold=0.5)
@@ -245,7 +300,7 @@ def train_set(set_name, ws_rgb, ws_label):
             iou,
             val_iou,
             pred_biou,
-            pred_tree_biou,
+            pred_human_biou,
             pred_bg_biou,
         ]
 
@@ -258,4 +313,4 @@ def train_set(set_name, ws_rgb, ws_label):
 
 if __name__ == "__main__":
     for set_name in tqdm(SET_NAMES, desc="Set", total=len(SET_NAMES)):
-        train_set(set_name, ws_rgb="strict/simple_imp", ws_label="strict")
+        train_set(include_nir=False, add_ndvi=False, squash=True)
