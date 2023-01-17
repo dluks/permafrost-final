@@ -92,12 +92,6 @@ def build_unet(input_shape, aug=False):
     return model
 
 
-def masked_loss_function(y_true, y_pred):
-    mask = K.cast(K.not_equal(y_true, MASK_VALUE), K.floatx())
-    y_true = K.cast(y_true, K.floatx())
-    return K.binary_crossentropy(y_true * mask, y_pred * mask)
-
-
 def callbacks(name):
     cb = []
     now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -149,12 +143,8 @@ def train_unet(
     model = build_unet(input_shape)
     batch_size = batch_size
     epochs = epochs
-    if masked_loss:
-        loss = masked_loss_function
-        metrics = MeanIoU(num_classes=3, ignore_class=MASK_VALUE)
-    else:
-        loss = "binary_crossentropy"
-        metrics = BinaryIoU(target_class_ids=[1], threshold=0.5)
+    loss = "binary_crossentropy"
+    metrics = BinaryIoU(target_class_ids=[1], threshold=0.5)
     model.compile(
         optimizer=Adam(learning_rate=eta),
         loss=loss,
