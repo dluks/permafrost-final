@@ -1,16 +1,8 @@
 import glob
 import os
 
-import geopandas as gpd
-import laspy as lp
-import numpy as np
-import scipy.ndimage as ndimage
 import tifffile as tiff
 from patchify import patchify
-from scipy import interpolate
-from scipy.spatial import cKDTree as kdtree
-from skimage.measure import regionprops
-from skimage.segmentation import watershed
 from sklearn.model_selection import train_test_split
 
 
@@ -253,142 +245,8 @@ def prep_data(
     return X_train, y_train, X_test, y_test
 
 
-def filter_labels(labels, img, band, area, ecc, ar, abr, intensity):
-    """Takes a set of labels and returns a filtered set based on regionprops parameters.
-
-    Args:
-        labels (ndarray): Watershed labels
-        img (ndarray): Image to pair with labels for regionprops extraction
-        band (int): The band to use for intensity in regionprops
-        area (float): Minimum area of filtered regions
-        ecc (float): Maximum eccentricity of filtered regions
-        ar (float): Minimum ratio of minor and major axes (1=square, 0.5=rectangle)
-        abr (float): Minimum ratio of area of non-zero pixels compared to bounding box area
-        intensity (float): Minimum band intensity of corresponding image
-
-    Returns:
-        filtered_labels (ndarray): Array of the filtered labels
-        bbox (list): List of the coordinates of each label's bounding box
-    """
-    if band:
-        regions = regionprops(labels, img[..., band])
-    else:
-        regions = regionprops(labels, img)
-    filtered_labels = np.zeros((labels.shape[0], labels.shape[1]), dtype=int)
-    bbox = []
-    for region in regions:
-        if (
-            region.area >= area
-            and (region.axis_minor_length / region.axis_major_length >= ar)
-            and (region.eccentricity <= ecc)
-            and (region.area / region.area_bbox >= abr)
-            and (region.intensity_mean >= intensity)
-        ):
-            filtered_labels[region.coords[:, 0], region.coords[:, 1]] = region.label
-            minr, minc, maxr, maxc = region.bbox
-            bx = (minc, maxc, maxc, minc, minc)
-            by = (minr, minr, maxr, maxr, minr)
-            bbox.append([bx, by])
-
-    return filtered_labels, bbox
-
-
-def watershed_labels(img, neighborhood_size, threshold, min_height):
-    p_smooth = ndimage.gaussian_filter(img, threshold)
-    p_max = ndimage.maximum_filter(p_smooth, neighborhood_size)
-    local_maxima = p_smooth == p_max
-    local_maxima[img == 0] = 0
-    labeled, num_objects = ndimage.label(local_maxima)
-    xy = np.array(
-        ndimage.center_of_mass(
-            input=img, labels=labeled, index=range(1, num_objects + 1)
-        )
-    )
-    binary_mask = np.where(img >= min_height, 1, 0)
-    binary_mask = ndimage.binary_fill_holes(binary_mask).astype(int)
-
-    labels = watershed(-img, labeled, mask=binary_mask)
-    return labels, xy
-
-
 def unpickle(pickle):
     a = np.zeros((len(pickle), len(pickle[0])))
     for i in range(len(pickle)):
         a[i, :] = pickle[i]
     return a
-
-
-def las2chm(las_file):
-    las = lp.read(las_file)
-    points = las.xyz.copy()
-    return_num = las.return_number.copy()
-    num_of_returns = las.number_of_returns.copy()
-    classification = las.classification.copy()
-    select = classification != 5
-    select += (return_num == 1) * (num_of_returns == 1)
-    select += (return_num == 2) * (num_of_returns == 2)
-    select += (return_num == 3) * (num_of_returns == 3)
-    select += (return_num == 4) * (num_of_returns == 4)
-    select += (return_num == 5) * (num_of_returns == 5)
-    points = points[~select]
-    tr = kdtree(points)
-    distances, indices = tr.query(points, k=25, workers=-1)
-    distances = distances[:, -1]
-    thr = 2.0
-    select = distances > thr
-    points = points[~select]
-    orginal_points = las.xyz.copy()
-    tr = kdtree(orginal_points)
-    distances, indices = tr.query(points, k=10, workers=-1)
-    distances = distances[:, -1]
-    indices = np.unique(indices[distances < 0.5])
-    points = np.vstack((points, orginal_points[indices]))
-    slice_position = np.mean(points[:, 1])
-    width = 5
-    slice_org = np.sqrt((orginal_points[:, 1] - slice_position) ** 2) <= width
-    slice = np.sqrt((points[:, 1] - slice_position) ** 2) <= width
-    gridsize = 1.0  # [m]
-    ground_points = las.xyz[las.classification == 2]
-    grid_x = ((ground_points[:, 0] - ground_points[:, 0].min()) / gridsize).astype(
-        "int"
-    )
-    grid_y = ((ground_points[:, 1] - ground_points[:, 1].min()) / gridsize).astype(
-        "int"
-    )
-    grid_index = grid_x + grid_y * grid_x.max()
-    df = gpd.GeoDataFrame(
-        {"gi": grid_index, "gx": grid_x, "gy": grid_y, "height": ground_points[:, 2]}
-    )
-    df2 = df.sort_values(["gx", "gy", "height"], ascending=[True, True, True])
-    df3 = df2.groupby("gi")[["gx", "gy", "height"]].last()
-    grid_x = np.array(df3["gx"])
-    grid_y = np.array(df3["gy"])
-    max_height = np.array(df3["height"])
-    DTM = np.ones((grid_x.max() + 1, grid_y.max() + 1)) * np.nan
-    DTM[grid_x, grid_y] = max_height
-    mask = np.isnan(DTM)
-    xx, yy = np.meshgrid(np.arange(DTM.shape[0]), np.arange(DTM.shape[1]))
-    valid_x = xx[~mask]
-    valid_y = yy[~mask]
-    newarr = DTM[~mask]
-    DTM_interp = interpolate.griddata(
-        (valid_x, valid_y), newarr.ravel(), (xx, yy), method="linear"
-    )
-    gridsize = 1.0  # [m]
-    filt_points = points
-    grid_x = ((filt_points[:, 0] - filt_points[:, 0].min()) / gridsize).astype("int")
-    grid_y = ((filt_points[:, 1] - filt_points[:, 1].min()) / gridsize).astype("int")
-    grid_index = grid_x + grid_y * grid_x.max()
-    df = gpd.GeoDataFrame(
-        {"gi": grid_index, "gx": grid_x, "gy": grid_y, "height": filt_points[:, 2]}
-    )
-    df2 = df.sort_values(["gx", "gy", "height"], ascending=[True, True, True])
-    df3 = df2.groupby("gi")[["gx", "gy", "height"]].last()
-    grid_x = np.array(df3["gx"])
-    grid_y = np.array(df3["gy"])
-    max_height = np.array(df3["height"])
-    DSM = np.ones((grid_x.max() + 1, grid_y.max() + 1)) * np.nan
-    DSM[grid_x, grid_y] = max_height
-    CHM = DSM - DTM_interp
-    CHM[np.isnan(CHM)] = 0
-    return CHM
