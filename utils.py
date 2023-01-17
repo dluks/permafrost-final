@@ -1,6 +1,7 @@
 import glob
 import os
 
+import numpy as np
 import tifffile as tiff
 from patchify import patchify
 from sklearn.model_selection import train_test_split
@@ -209,38 +210,6 @@ def prep_data(
     X_test: {X_test.shape}\n\
     y_test: {y_test.shape}"
     )
-
-    # # Patchify watershed data (pre-patchified)
-    # WS_DIR = os.path.join(data_dir, "watershed")
-    # WS_RGBI_DIR = os.path.join(WS_DIR, f"rgbi/{ws_rgb}/512")
-    # WS_LABEL_DIR = os.path.join(WS_DIR, f"labels/{ws_label}/512")
-
-    # data_train, data_label, data_label_inst = patch_train_label(
-    #     WS_RGBI_DIR, WS_LABEL_DIR, 128, channels=channels, mask_class=False
-    # )
-
-    # # Always use the hand-labeled test split as final test (outside KF CV) because
-    # # we know it is higher quality
-    # X_train = np.concatenate((X_train, data_train), axis=0)
-    # y_train = np.concatenate((y_train, data_label), axis=0)
-    # inst_train = np.concatenate((inst_train, data_label_inst))
-
-    # pct_bg = (np.count_nonzero(y_train == 0) / len(y_train.ravel())) * 100
-    # pct_trees = (np.count_nonzero(y_train == 1) / len(y_train.ravel())) * 100
-    # pct_masked = (np.count_nonzero(y_train == -1) / len(y_train.ravel())) * 100
-    # print("\nWatershed percents")
-    # print("--------------------")
-    # print(f"% BG: {pct_bg:.2f}%")
-    # print(f"% Trees: {pct_trees:.2f}%")
-    # print(f"% Masked: {pct_masked:.2f}%")
-
-    # print(
-    #     f"\nSizes after adding watershed data:\n\
-    # X_train: {X_train.shape}\n\
-    # y_train: {y_train.shape}\n\
-    # X_test: {X_test.shape}\n\
-    # y_test: {y_test.shape}"
-    # )
 
     return X_train, y_train, X_test, y_test
 
