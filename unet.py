@@ -33,7 +33,7 @@ MASK_VALUE = -1
 N_FOLDS = 2
 EPOCHS = 15
 ETA = 1e-2
-BATCH_SIZE = 16
+BATCH_SIZE = 4
 
 tf.get_logger().setLevel("ERROR")
 
