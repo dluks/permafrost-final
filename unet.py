@@ -30,7 +30,7 @@ SET_NAMES = ["single-class"]
 MASK_VALUE = -1
 
 # Hyperparams
-N_FOLDS = 1
+N_FOLDS = 2
 EPOCHS = 15
 ETA = 1e-2
 BATCH_SIZE = 16
