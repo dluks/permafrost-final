@@ -226,7 +226,7 @@ def train_set(include_nir=False, add_ndvi=False, squash=True):
     data = np.zeros((N_FOLDS, len(stats)), dtype=object)
 
     # Initialize the KFold
-    kf = KFold(n_splits=N_FOLDS, shuffle=True, random_state=7)
+    kf = KFold(n_splits=N_FOLDS, shuffle=True)
 
     for i, (itrain, itest) in enumerate(
         tqdm(
