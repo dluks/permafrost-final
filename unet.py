@@ -303,4 +303,4 @@ def train_set(include_nir=False, add_ndvi=False, squash=True):
 
 if __name__ == "__main__":
     for set_name in tqdm(SET_NAMES, desc="Set", total=len(SET_NAMES)):
-        train_set(include_nir=False, add_ndvi=False, squash=True)
+        train_set(include_nir=True, add_ndvi=True, squash=True)
