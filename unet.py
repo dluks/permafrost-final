@@ -217,7 +217,7 @@ def load_datasets(include_nir=False, add_ndvi=False, squash=True):
 
 def train_set(include_nir=False, add_ndvi=False, squash=True):
     
-    X_train, y_train, X_test, y_test = load_datasets(include_nir=False, add_ndvi=False, squash=True)
+    X_train, y_train, X_test, y_test = load_datasets(include_nir=include_nir, add_ndvi=add_ndvi, squash=True)
 
     # MODEL
     # Data structure
