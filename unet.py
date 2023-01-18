@@ -33,7 +33,7 @@ MASK_VALUE = -1
 N_FOLDS = 2
 EPOCHS = 15
 ETA = 1e-2
-BATCH_SIZE = 4
+BATCH_SIZE = 8
 
 tf.get_logger().setLevel("ERROR")
 
@@ -144,7 +144,7 @@ def train_unet(
     batch_size = batch_size
     epochs = epochs
     loss = "binary_crossentropy"
-    metrics = BinaryIoU(target_class_ids=[1], threshold=0.5)
+    metrics = BinaryIoU(target_class_ids=[0, 1], threshold=0.5)
     model.compile(
         optimizer=Adam(learning_rate=eta),
         loss=loss,
