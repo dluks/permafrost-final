@@ -76,11 +76,11 @@ def patch_train_label(
                 np.seterr(divide="ignore", invalid="ignore")
                 r = r.astype(np.float64)
                 ndvi = (r[..., -1] - r[..., 0]) / (r[..., -1] + r[..., 0])
-                r = r.astype(np.uint16)
+                r = r.astype(np.uint8)
                 ndvi[np.isnan(ndvi)] = -1
                 # Normalize and convert to 255 range
                 ndvi = (((ndvi - ndvi.min()) / (ndvi.max() - ndvi.min())) * 255).astype(
-                    np.uint16
+                    np.uint8
                 )
                 r = np.dstack((r, ndvi))
         else:
@@ -91,6 +91,8 @@ def patch_train_label(
             # Squash all class labels into single class
             labels[labels > 0] = 1
 
+        # Only include patches that are square and match the img_size_override
+        # dimension (if set), and that contain no 0 (nodata) values.
         if (
             img_size_override
             and (r.shape[0] == img_size_override and r.shape[1] == img_size_override)
@@ -102,7 +104,6 @@ def patch_train_label(
                 step=img_size,
             )
             patches_label = patchify(labels, (img_size, img_size), step=img_size)
-            # print(patches_label.shape)
             data_train[k * m : (k + 1) * m, :, :, :] = patches_train.reshape(
                 -1, img_size, img_size, channels
             )
@@ -124,9 +125,18 @@ def patch_train_label(
 
     data_label = np.expand_dims(data_label, axis=-1)
     data_train = data_train.astype("float") / 255
+    
+    # Identify patches with nodata (0) values and cull
+    print("Training set size with nodata:", data_train.shape[0])
+    nodata_patches = []
+    for patch in data_train:
+        nodata_patches.append(len(patch[patch==0]) != 0)
+    nodata_patches = np.asarray(nodata_patches)
+    data_train = data_train[~nodata_patches]
+    data_label = data_label[~nodata_patches]
 
     print(
-        f"\nPatched data sizes:\ndata_train: {data_train.shape}\ndata_label: {data_label.shape}"
+        f"\nPatched data sizes w/o nodata:\ndata_train: {data_train.shape}\ndata_label: {data_label.shape}"
     )
 
     return data_train, data_label
@@ -147,7 +157,6 @@ def prep_data(
     label_fns = []
 
     dirs = glob.glob(f"{data_dir}/*")
-    print("Number of directories:", len(dirs))
 
     for dir in dirs:
         rgb = glob.glob(f"{dir}/rgb/*.tif")[0]
@@ -159,10 +168,6 @@ def prep_data(
         label_fns.append(labels)
 
     assert len(rgb_fns) == len(label_fns), "RGB and Labels file counts do not match."
-    # print("RGB size:", len(rgb_fns))
-    # if include_nir:
-    #     print("NIR size:", len(nir_fns))
-    # print("Labels size:", len(label_fns))
 
     if include_nir and add_ndvi:
         data_train, data_label = patch_train_label(
