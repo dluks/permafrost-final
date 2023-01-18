@@ -26,7 +26,7 @@ from utils import prep_data
 # Config
 BASE_LOGS_DIR = "logs"
 DATA_DIR = "data"
-SET_NAMES = ["single-class"]
+SET_NAMES = ["classes_1-2-4-5"]
 MASK_VALUE = -1
 
 # Hyperparams
@@ -168,12 +168,13 @@ def concat_train_test(X_train, y_train, X_test, y_test, X_train_add, y_train_add
     y_test = np.concatenate((y_test, y_test_add), axis=0)
     return X_train, y_train, X_test, y_test
 
-def load_datasets(include_nir=False, add_ndvi=False, squash=True):
+def load_datasets(include_nir=False, add_ndvi=False, select_labels=False, squash=True):
     # Load Kivalina
     X_train, y_train, X_test, y_test = prep_data(
         "data/WA_Kivalina_01_20219703/20cm/Ortho",
         include_nir=include_nir,
         add_ndvi=add_ndvi,
+        select_labels=select_labels,
         squash=squash,
         img_size_override=2500,
     )
@@ -183,6 +184,7 @@ def load_datasets(include_nir=False, add_ndvi=False, squash=True):
         "data/WA_Kotzebue_01_20210625/20cm/Ortho",
         include_nir=include_nir,
         add_ndvi=add_ndvi,
+        select_labels=select_labels,
         squash=squash,
         img_size_override=2500,
     )
@@ -197,6 +199,7 @@ def load_datasets(include_nir=False, add_ndvi=False, squash=True):
         "data/WA_Shishmaref_01_20210628/20cm/Ortho",
         include_nir=include_nir,
         add_ndvi=add_ndvi,
+        select_labels=select_labels,
         squash=squash,
         img_size_override=2500,
     )
@@ -217,7 +220,7 @@ def load_datasets(include_nir=False, add_ndvi=False, squash=True):
 
 def train_set(include_nir=False, add_ndvi=False, squash=True):
     
-    X_train, y_train, X_test, y_test = load_datasets(include_nir=include_nir, add_ndvi=add_ndvi, squash=True)
+    X_train, y_train, X_test, y_test = load_datasets(include_nir=include_nir, add_ndvi=add_ndvi, select_labels=[1, 2, 4, 5], squash=True)
 
     # MODEL
     # Data structure
