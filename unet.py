@@ -27,7 +27,7 @@ from utils import prep_data
 BASE_LOGS_DIR = "logs"
 DATA_DIR = "data"
 SET_NAMES = ["classes_1-2-5"]
-SELECT_CLASSES = [1, 2, 5]
+SELECT_LABELS = [1, 2, 5]
 MASK_VALUE = -1
 
 # Hyperparams
