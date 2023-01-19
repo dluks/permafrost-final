@@ -27,13 +27,14 @@ from utils import prep_data
 BASE_LOGS_DIR = "logs"
 DATA_DIR = "data"
 SET_NAMES = ["classes_1-2-5"]
+SELECT_CLASSES = [1, 2, 5]
 MASK_VALUE = -1
 
 # Hyperparams
-N_FOLDS = 2
-EPOCHS = 15
+N_FOLDS = 5
+EPOCHS = 50
 ETA = 1e-2
-BATCH_SIZE = 8
+BATCH_SIZE = 16
 
 tf.get_logger().setLevel("ERROR")
 
@@ -220,7 +221,7 @@ def load_datasets(include_nir=False, add_ndvi=False, select_labels=False, squash
 
 def train_set(include_nir=False, add_ndvi=False, squash=True):
     
-    X_train, y_train, X_test, y_test = load_datasets(include_nir=include_nir, add_ndvi=add_ndvi, select_labels=[1, 2, 5], squash=True)
+    X_train, y_train, X_test, y_test = load_datasets(include_nir=include_nir, add_ndvi=add_ndvi, select_labels=SELECT_LABELS, squash=True)
 
     # MODEL
     # Data structure
