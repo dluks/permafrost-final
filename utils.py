@@ -124,7 +124,7 @@ def patch_train_label(
         print("Shape after:", data_train.shape)
 
     data_label = np.expand_dims(data_label, axis=-1)
-    data_train = data_train.astype("float") / 255
+    data_train = data_train.astype(np.float16) / 255
 
     return data_train, data_label
 
@@ -187,6 +187,10 @@ def prep_data(
             squash=squash,
             img_size_override=img_size_override,
         )
+    
+    # Make sure everything is the correct datatype
+    data_label = data_label.astype(np.uint8)
+    data_train = data_train.astype(np.float16)
 
     # Identify patches with nodata (0) values and cull
     print("\nRemoving images with nodata values...")
@@ -201,6 +205,15 @@ def prep_data(
     print(
         f"\nPatched data sizes w/o nodata:\ndata_train: {data_train.shape}\ndata_label: {data_label.shape}"
     )
+    
+    if select_labels or squash:
+        for patch in data_label:
+            if select_labels:
+                patch[~np.isin(patch, select_labels)] = 0
+                
+            if squash:
+                # Squash all class labels into single class
+                patch[patch > 0] = 1
     
     
     # Generate list of whether or not patches have labels
@@ -228,22 +241,6 @@ def prep_data(
 
     data_label = data_label[~no_label_patches]
     data_train = data_train[~no_label_patches]
-    
-    if select_labels or squash:
-        for patch in data_label:
-            if select_labels:
-                patch[~np.isin(patch, select_labels)] = 0
-                
-            if squash:
-                # Squash all class labels into single class
-                patch[patch > 0] = 1
-    
-    
-    
-    # Remove percentage of patches that have no positive label ids
-    # no_label_patches = []
-    # for patch in data_label:
-    #     no_label_patches.append(np.all(patch == 0))
 
     X_train, X_test, y_train, y_test = train_test_split(
         data_train,
