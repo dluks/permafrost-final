@@ -220,7 +220,7 @@ def load_datasets(include_nir=False, add_ndvi=False, select_labels=False, squash
 
 def train_set(include_nir=False, add_ndvi=False, squash=True):
     
-    X_train, y_train, X_test, y_test = load_datasets(include_nir=include_nir, add_ndvi=add_ndvi, select_labels=[1, 2, 4, 5], squash=True)
+    X_train, y_train, X_test, y_test = load_datasets(include_nir=include_nir, add_ndvi=add_ndvi, select_labels=[1, 2, 5], squash=True)
 
     # MODEL
     # Data structure
@@ -269,7 +269,7 @@ def train_set(include_nir=False, add_ndvi=False, squash=True):
         val_iou = history.history[list(history.history.keys())[3]]
 
         # Test the model on the preserved test data
-        y_pred = model.predict(X_test)
+        y_pred = model.predict(X_test, batch_size=2)
 
         # Get the IoU for the test data
         biou = BinaryIoU(target_class_ids=[0, 1], threshold=0.5)
