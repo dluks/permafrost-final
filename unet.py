@@ -26,7 +26,7 @@ from utils import prep_data
 # Config
 BASE_LOGS_DIR = "logs"
 DATA_DIR = "data"
-SET_NAMES = ["classes_1-2-4-5"]
+SET_NAMES = ["classes_1-2-5"]
 MASK_VALUE = -1
 
 # Hyperparams
