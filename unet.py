@@ -16,7 +16,7 @@ from tensorflow.keras.layers import (
     Input,
     MaxPool2D,
 )
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import BinaryIoU, MeanIoU
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
@@ -29,6 +29,8 @@ BASE_LOGS_DIR = "logs"
 DATA_DIR = "data"
 SET_NAMES = ["multiclass_all"]
 SELECT_LABELS = False
+N_CLASSES = 6
+MULTICLASS = True
 MASK_VALUE = -1
 
 # Hyperparams
@@ -89,8 +91,11 @@ def build_unet(input_shape, aug=False):
     d2 = decoder_block(d1, s3, 256)
     d3 = decoder_block(d2, s2, 128)
     d4 = decoder_block(d3, s1, 64)
-    # outputs = Conv2D(1, 1, padding="same", activation="sigmoid")(d4)
-    outputs = Conv2D(1, 1, padding="same")(d4)
+
+    if MULTICLASS:
+        outputs = Conv2D(filters=N_CLASSES, kernel_size=(1,1), padding="same", activation="softmax")(d4)
+    else:
+        outputs = Conv2D(1, 1, padding="same", activation="sigmoid")(d4)
     model = Model(inputs, outputs, name="U-Net")
     return model
 
@@ -146,12 +151,14 @@ def train_unet(
     model = build_unet(input_shape)
     batch_size = batch_size
     epochs = epochs
-    # Single-class
-    # loss = "binary_crossentropy"
-    # metrics = BinaryIoU(target_class_ids=[1], threshold=0.5)
-    # Multi-class
-    loss = SparseCategoricalCrossentropy(from_logits=True)
-    metrics = MeanIoU(num_classes=6, sparse_y_true=True, sparse_y_pred=True)
+    
+    if MULTICLASS:
+        loss = "caegorical_crossentropy"
+        metrics = MeanIoU(num_classes=N_CLASSES)
+    else:
+        loss = "binary_crossentropy"
+        metrics = BinaryIoU(target_class_ids=[1], threshold=0.5)
+
     model.compile(
         optimizer=Adam(learning_rate=eta),
         loss=loss,
@@ -229,6 +236,10 @@ def train_set(include_nir=False, add_ndvi=False, squash=True):
     
     X_train, y_train, X_test, y_test = load_datasets(include_nir=include_nir, add_ndvi=add_ndvi, select_labels=SELECT_LABELS, squash=True)
 
+    if MULTICLASS:
+        y_train = tf.keras.utils.to_categorical(y_train, N_CLASSES)
+        y_test = tf.keras.utils.to_categorical(y_test, N_CLASSES)
+        
     # MODEL
     # Data structure
     stats = ["loss", "val_loss", "iou", "val_iou", "mean_biou", "human_biou", "bg_biou"]
