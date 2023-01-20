@@ -27,8 +27,8 @@ from utils import prep_data
 # Config
 BASE_LOGS_DIR = "logs"
 DATA_DIR = "data"
-SET_NAMES = ["classes_1"]
-SELECT_LABELS = [1]
+SET_NAMES = ["multiclass_all"]
+SELECT_LABELS = False
 MASK_VALUE = -1
 
 # Hyperparams
