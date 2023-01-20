@@ -89,7 +89,8 @@ def build_unet(input_shape, aug=False):
     d2 = decoder_block(d1, s3, 256)
     d3 = decoder_block(d2, s2, 128)
     d4 = decoder_block(d3, s1, 64)
-    outputs = Conv2D(1, 1, padding="same", activation="sigmoid")(d4)
+    # outputs = Conv2D(1, 1, padding="same", activation="sigmoid")(d4)
+    outputs = Conv2D(1, 1, padding="same")(d4)
     model = Model(inputs, outputs, name="U-Net")
     return model
 
