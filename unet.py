@@ -16,6 +16,7 @@ from tensorflow.keras.layers import (
     Input,
     MaxPool2D,
 )
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import BinaryIoU, MeanIoU
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
@@ -144,8 +145,12 @@ def train_unet(
     model = build_unet(input_shape)
     batch_size = batch_size
     epochs = epochs
-    loss = "binary_crossentropy"
-    metrics = BinaryIoU(target_class_ids=[1], threshold=0.5)
+    # Single-class
+    # loss = "binary_crossentropy"
+    # metrics = BinaryIoU(target_class_ids=[1], threshold=0.5)
+    # Multi-class
+    loss = SparseCategoricalCrossentropy(from_logits=True)
+    metrics = MeanIoU(num_classes=6, sparse_y_true=True, sparse_y_pred=True)
     model.compile(
         optimizer=Adam(learning_rate=eta),
         loss=loss,
