@@ -26,15 +26,15 @@ from utils import prep_data
 # Config
 BASE_LOGS_DIR = "logs"
 DATA_DIR = "data"
-SET_NAMES = ["classes_1-2-5"]
-SELECT_LABELS = [1, 2, 5]
+SET_NAMES = ["classes_1"]
+SELECT_LABELS = [1]
 MASK_VALUE = -1
 
 # Hyperparams
 N_FOLDS = 5
 EPOCHS = 50
 ETA = 1e-2
-BATCH_SIZE = 16
+BATCH_SIZE = 4
 
 tf.get_logger().setLevel("ERROR")
 
